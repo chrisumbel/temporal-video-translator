@@ -16,14 +16,14 @@ A single `VideoTranslatorWorkflow` (Temporal) drives the pipeline. Each Azure-bo
 
 ```mermaid
 flowchart TD
-    submit[start.py / test.sh / web UI] --> validate[validate API key, normalize languages]
+    submit[web UI or start.py ] --> validate[validate API key, normalize languages]
     validate --> download[download video to blob storage]
-    download --> transcribe[transcribe - Azure AI Video Indexer]
-    download --> shots[extract screenshots - ffmpeg pool]
-    shots --> pick[gpt-4o vision picks best screenshot]
-    transcribe --> para[paragraph transcript - gpt-4o, whitespace-only]
-    para --> summarize[summarize - gpt-4o]
-    para --> translate[translate x N - Azure AI Translator]
+    download --> transcribe[transcribe<br>Azure AI Video Indexer]
+    download --> shots[extract screenshots<br>ffmpeg pool]
+    shots --> pick[gpt-4o vision<br>picks best screenshot]
+    transcribe --> para[paragraph transcript<br>gpt-4o]
+    para --> summarize[summarize<br>gpt-4o]
+    para --> translate[translate x N<br>Azure AI Translator]
     summarize --> upload[upload result JSON]
     translate --> upload
     pick --> upload
@@ -34,7 +34,7 @@ Everything runs in the `tvt-aks` cluster inside the `temporal-video-translator` 
 
 ```mermaid
 flowchart LR
-    client[start.py / test.sh<br>public LB :7233] --> temporal
+    client[Public LB or start.py] --> temporal
     subgraph AKS [AKS tvt-aks]
         temporal[Temporal server + UI<br>postgres persistence]
         worker[worker x2<br>main, transcribe, summarize, translate]
@@ -59,5 +59,6 @@ flowchart LR
 - **Web UI** — `tvt/web/`: submit runs and follow progress (reach via `web.sh`); `test.sh` submits from the CLI.
 - **Workers** — two images from one Dockerfile: the main image (PDF/font stack) and a slim ffmpeg image for screenshots. Built/pushed by the `Makefile` to the `tvttranslator` ACR.
 - **Helm chart** — `helm/temporal-video-translator/`: workers, web, self-contained Temporal server + postgres; secrets from a gitignored `secrets.yaml`.
+- **Claude Code skills** — `.claude/skills/`: the `diagrams` and `archdoc` skills that regenerate the SVG diagrams and `docs/architecture.pdf` from the current code and Azure layout.
 - **Run output** — result JSON, screenshot, and PDF report in public blob containers; URLs returned by the workflow.
 
