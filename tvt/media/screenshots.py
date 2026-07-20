@@ -13,6 +13,7 @@ from tvt.media import downloader
 load_dotenv()
 
 SCRATCH_SCREENSHOT_CONTAINER = os.environ["SCRATCH_SCREENSHOT_CONTAINER"]
+SCREENSHOT_CONTAINER = os.environ["SCREENSHOT_CONTAINER"]
 
 # keep uploads and gpt-4o vision input small
 SCREENSHOT_WIDTH = 960
@@ -74,3 +75,15 @@ def extract_screenshots(video_blob_name):
 
     logger.info("Extracted %s", blob_names)
     return blob_names
+
+
+def scratch_image(blob_name):
+    """Read one scratch screenshot's bytes."""
+    return blob_store.open_blob(SCRATCH_SCREENSHOT_CONTAINER, blob_name).readall()
+
+
+def promote(scratch_blob_name, public_name):
+    """Copy a scratch screenshot into the public container; return its URL."""
+    return blob_store.upload_blob(SCREENSHOT_CONTAINER, public_name,
+                                  scratch_image(scratch_blob_name),
+                                  content_type="image/jpeg")

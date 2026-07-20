@@ -1,6 +1,6 @@
 import pytest
 
-from tvt.azure import translate
+from tvt.azure.ai import translate
 
 SUPPORTED = ["fr", "de", "ja", "ko", "zh-Hans", "zh-Hant", "pt-BR"]
 

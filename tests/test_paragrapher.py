@@ -4,8 +4,10 @@ import json
 import pytest
 from temporalio.testing import ActivityEnvironment
 
-from tvt.azure import paragrapher
-from tvt.azure import summarizer
+from tvt.ai import paragrapher
+from tvt.ai.paragrapher import Paragrapher
+
+AUTH = lambda: {"Authorization": "Bearer token"}
 
 
 def test_same_ignoring_whitespace():
@@ -29,37 +31,36 @@ class FakeResponse:
 
 
 def _install(monkeypatch, reply):
-    monkeypatch.setattr(summarizer, "auth_headers", lambda: {"Authorization": "Bearer token"})
     monkeypatch.setattr(paragrapher.requests, "post", lambda *a, **kw: FakeResponse(reply))
 
 
 def test_add_paragraphs_inserts_breaks_at_reported_starts(monkeypatch):
     _install(monkeypatch, json.dumps({"paragraph_starts": [1, 3]}))
     text = "One. Two. Three. Four."
-    assert paragrapher.add_paragraphs(text) == "One. Two.\n\nThree. Four."
+    assert Paragrapher(AUTH).add_paragraphs(text) == "One. Two.\n\nThree. Four."
 
 
 def test_out_of_range_starts_are_ignored(monkeypatch):
     _install(monkeypatch, json.dumps({"paragraph_starts": [1, 3, 99]}))
-    assert paragrapher.add_paragraphs("One. Two. Three.") == "One. Two.\n\nThree."
+    assert Paragrapher(AUTH).add_paragraphs("One. Two. Three.") == "One. Two.\n\nThree."
 
 
 def test_single_sentence_passes_through_without_a_call(monkeypatch):
     monkeypatch.setattr(paragrapher.requests, "post",
                         lambda *a, **kw: (_ for _ in ()).throw(AssertionError("no call")))
-    assert paragrapher.add_paragraphs("Just one sentence.") == "Just one sentence."
+    assert Paragrapher(AUTH).add_paragraphs("Just one sentence.") == "Just one sentence."
 
 
 def test_unusable_model_reply_raises_value_error(monkeypatch):
     _install(monkeypatch, "not json at all")
     with pytest.raises(ValueError):
-        paragrapher.add_paragraphs("One. Two. Three.")
+        Paragrapher(AUTH).add_paragraphs("One. Two. Three.")
 
 
 def test_activity_falls_back_to_original_on_rewording(monkeypatch):
-    from tvt.temporal.activities import paragraph_transcript_activity
-    monkeypatch.setattr(paragrapher, "add_paragraphs",
+    from tvt.temporal import activities
+    monkeypatch.setattr(activities.paragrapher, "add_paragraphs",
                         lambda text: (_ for _ in ()).throw(ValueError("altered")))
     env = ActivityEnvironment()
-    out = asyncio.run(env.run(paragraph_transcript_activity, "untouched text"))
+    out = asyncio.run(env.run(activities.paragraph_transcript_activity, "untouched text"))
     assert out == "untouched text"

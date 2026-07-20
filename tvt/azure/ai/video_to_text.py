@@ -1,9 +1,7 @@
-#!/usr/bin/env python3
 """Extract speech from a video and transcribe it using Azure AI Video Indexer."""
 
 import logging
 import os
-import sys
 import time
 
 import requests
@@ -106,24 +104,3 @@ def transcript_for(video_id):
 def video_to_speech(video_stream):
     """Transcribe the speech in an encoded video stream to a string."""
     return transcript_for(upload(video_stream))
-
-
-def main():
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-        stream=sys.stderr,
-    )
-    logging.getLogger("azure").setLevel(logging.WARNING)
-    logging.getLogger("urllib3").setLevel(logging.WARNING)
-
-    if len(sys.argv) != 2:
-        print(f"usage: {sys.argv[0]} <video-file>", file=sys.stderr)
-        sys.exit(1)
-
-    with open(sys.argv[1], "rb") as video_stream:
-        print(video_to_speech(video_stream))
-
-
-if __name__ == "__main__":
-    main()

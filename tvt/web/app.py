@@ -14,7 +14,7 @@ from urllib.parse import urlparse
 from flask import Flask, jsonify, render_template, request
 from temporalio.client import Client
 
-from tvt.azure import translate
+from tvt.azure.ai import translate
 from tvt.temporal.shared import (
     TASK_QUEUE,
     WORKFLOW_ID,

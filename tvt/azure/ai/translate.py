@@ -1,9 +1,7 @@
-#!/usr/bin/env python3
 """Translate English text to another language using Azure AI Translator."""
 
 import logging
 import os
-import sys
 
 import requests
 from dotenv import load_dotenv
@@ -73,23 +71,3 @@ def translate(text, language):
     )
     response.raise_for_status()
     return response.json()[0]["translations"][0]["text"]
-
-
-def main():
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-        stream=sys.stderr,
-    )
-    logging.getLogger("azure").setLevel(logging.WARNING)
-    logging.getLogger("urllib3").setLevel(logging.WARNING)
-
-    if len(sys.argv) != 3:
-        print(f"usage: {sys.argv[0]} <language> <text>", file=sys.stderr)
-        sys.exit(1)
-
-    print(translate(sys.argv[2], sys.argv[1]))
-
-
-if __name__ == "__main__":
-    main()

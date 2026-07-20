@@ -2,8 +2,10 @@ import json
 
 import pytest
 
-from tvt.azure import screenshot_selector
-from tvt.azure import summarizer
+from tvt.ai import screenshot_selector
+from tvt.ai.screenshot_selector import ScreenshotSelector
+
+AUTH = lambda: {"Authorization": "Bearer token"}
 
 
 class FakeResponse:
@@ -19,17 +21,9 @@ class FakeResponse:
         ]}]}
 
 
-class FakeBlob:
-    def readall(self):
-        return b"not-really-a-jpeg"
-
-
 @pytest.fixture
 def selector_doubles(monkeypatch):
     def _install(verdict):
-        monkeypatch.setattr(summarizer, "auth_headers", lambda: {"Authorization": "Bearer token"})
-        monkeypatch.setattr(screenshot_selector.blob_store, "open_blob",
-                            lambda container, name: FakeBlob())
         monkeypatch.setattr(screenshot_selector.requests, "post",
                             lambda *a, **kw: FakeResponse(verdict))
     return _install
@@ -37,10 +31,10 @@ def selector_doubles(monkeypatch):
 
 def test_choose_best_returns_model_choice(selector_doubles):
     selector_doubles({"choice": 1, "reason": "clear face"})
-    assert screenshot_selector.choose_best(["a.jpg", "b.jpg", "c.jpg"]) == 1
+    assert ScreenshotSelector(AUTH).choose_best([b"a", b"b", b"c"]) == 1
 
 
 def test_out_of_range_choice_raises(selector_doubles):
     selector_doubles({"choice": 7, "reason": "hallucinated"})
     with pytest.raises(ValueError, match="out-of-range"):
-        screenshot_selector.choose_best(["a.jpg", "b.jpg"])
+        ScreenshotSelector(AUTH).choose_best([b"a", b"b"])

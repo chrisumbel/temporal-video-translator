@@ -10,14 +10,16 @@
   - `temporal.svg` — Temporal topology: clients, server, task queues, and worker pools with their concurrency caps.
   - `infra.svg` — cloud infrastructure: AKS deployments, Azure services, ACR, identity, and networking.
 
+## Example Outputs
+
 ## Architecture
 
 A single `VideoTranslatorWorkflow` (Temporal) drives the pipeline. Each Azure-bound stage runs on its own task queue with a per-pod concurrency cap matched to that service's quota. All Azure calls authenticate with Microsoft Entra ID via `DefaultAzureCredential` (service principal in-cluster, `az login` locally).
 
 ```mermaid
 flowchart TD
-    submit[web UI or start.py ] --> validate[validate API key, normalize languages]
-    validate --> download[download video to blob storage]
+    submit[web UI or start.py ] --> validate[validate API key<br>normalize languages]
+    validate --> download[download video<br>to blob storage]
     download --> transcribe[transcribe<br>Azure AI Video Indexer]
     download --> shots[extract screenshots<br>ffmpeg pool]
     shots --> pick[gpt-4o vision<br>picks best screenshot]
@@ -37,8 +39,8 @@ flowchart LR
     client[Public LB or start.py] --> temporal
     subgraph AKS [AKS tvt-aks]
         temporal[Temporal server + UI<br>postgres persistence]
-        worker[worker x2<br>main, transcribe, summarize, translate]
-        shot[screenshot worker x3<br>ffmpeg image]
+        worker[worker pool<br>main, transcribe, summarize, translate]
+        shot[screenshot worker pool<br>ffmpeg image]
         web[Flask web UI<br>internal LB]
     end
     subgraph Azure [Azure services]
@@ -51,10 +53,13 @@ flowchart LR
     shot --> storage
 ```
 
+Note there are 2 pools of workers: a primary worker pool for typical tasks that are mostly orchestrating the use of Azure AI services, and a worker pool for compute-intensive FFMPEG operations. In practice, these FFMPEG workers could be GPU-enabled, high-memory, or otherwise special in their configuration.
+
 ## Major parts
 
 - **Orchestration** — `tvt/temporal/`: the workflow, activities, shared dataclasses, worker, and CLI starter.
-- **Azure clients** — `tvt/azure/`: one module per service (Video Indexer, OpenAI, Translator, blob storage) plus shared Entra auth; each runnable as a CLI via `python -m`.
+- **AI logic** — `tvt/ai/`: the `Summarizer`, `Paragrapher`, and `ScreenshotSelector` classes. Provider-neutral.
+- **Azure clients** — `tvt/azure/`: shared Entra auth and blob storage; `tvt/azure/ai/`: the Azure-only AI services (Video Indexer, Translator) plus the OpenAI auth provider injected into `tvt/ai`.
 - **Media** — `tvt/media/`: video staging, ffmpeg screenshots, result upload, and the PDF report renderer.
 - **Web UI** — `tvt/web/`: submit runs and follow progress (reach via `web.sh`); `test.sh` submits from the CLI.
 - **Workers** — two images from one Dockerfile: the main image (PDF/font stack) and a slim ffmpeg image for screenshots. Built/pushed by the `Makefile` to the `tvttranslator` ACR.

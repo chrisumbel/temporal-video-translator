@@ -9,14 +9,15 @@ import secrets
 from temporalio import activity
 from temporalio.exceptions import ApplicationError
 
+from tvt.ai.paragrapher import Paragrapher
+from tvt.ai.screenshot_selector import ScreenshotSelector
+from tvt.ai.summarizer import Summarizer
+from tvt.azure.ai import translate
+from tvt.azure.ai import video_to_text
+from tvt.azure.ai.auth import openai_auth_headers
 from tvt.media import downloader
-from tvt.azure import paragrapher
-from tvt.azure import screenshot_selector
 from tvt.media import screenshots
-from tvt.azure import summarizer
-from tvt.azure import translate
 from tvt.media import uploader
-from tvt.azure import video_to_text
 from tvt.temporal.shared import (
     PdfRequest,
     ScreenshotSelectRequest,
@@ -28,6 +29,11 @@ from tvt.temporal.shared import (
 MAX_LOG_CHARS = 120
 
 HEARTBEAT_INTERVAL_SECONDS = 10
+
+# gpt-4o helpers wired to Azure OpenAI via Entra auth
+summarizer = Summarizer(openai_auth_headers)
+paragrapher = Paragrapher(openai_auth_headers)
+screenshot_selector = ScreenshotSelector(openai_auth_headers)
 
 
 async def _run_with_heartbeat(fn, *args, details=()):
@@ -124,9 +130,11 @@ async def extract_screenshots_activity(video_blob_name: str) -> list[str]:
 async def select_screenshot_activity(request: ScreenshotSelectRequest) -> str:
     """Pick the best screenshot with gpt-4o and publish it; return its public URL."""
     def _select() -> str:
-        choice = screenshot_selector.choose_best(request.screenshot_blob_names)
+        images = [screenshots.scratch_image(name)
+                  for name in request.screenshot_blob_names]
+        choice = screenshot_selector.choose_best(images)
         chosen = request.screenshot_blob_names[choice]
-        return screenshot_selector.promote(chosen, request.public_name)
+        return screenshots.promote(chosen, request.public_name)
 
     url = await _run_with_heartbeat(_select)
     activity.logger.info(f"Best screenshot published to {url}")

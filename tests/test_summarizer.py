@@ -1,4 +1,4 @@
-from tvt.azure.summarizer import output_text
+from tvt.ai.summarizer import output_text
 
 
 def test_collects_output_text_parts():
