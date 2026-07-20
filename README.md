@@ -12,6 +12,11 @@
 
 ## Example Outputs
 
+- [Computing the Null Space of a Matrix](https://tvttranslations.blob.core.windows.net/pdf/video-translator-nullspace.mp4-c1165ecd-nullspace.pdf) ([json](https://tvttranslations.blob.core.windows.net/json/video-translator-nullspace.mp4-c1165ecd-nullspace.json)) — a linear algebra lecture on finding the null space of a matrix by row reduction to RREF and reading off the special solutions.
+- [The Agora and Athenian Democracy](https://tvttranslations.blob.core.windows.net/pdf/video-translator-agora.mp4-317b406f-agora.pdf) ([json](https://tvttranslations.blob.core.windows.net/json/video-translator-agora.mp4-317b406f-agora.json)) — a history piece on the Athenian agora and the workings (and limits) of direct democracy in 5th-century BCE Athens.
+- [Integration as the Reverse of Differentiation](https://tvttranslations.blob.core.windows.net/pdf/video-translator-integrals.mp4-4fbae108-integrals.pdf) ([json](https://tvttranslations.blob.core.windows.net/json/video-translator-integrals.mp4-4fbae108-integrals.json)) — a calculus lecture on integration as the reverse of differentiation, building the integral as the limit of summed areas under a curve.
+- [Coolidge on Taxes and Government Spending](https://tvttranslations.blob.core.windows.net/pdf/video-translator-coolidge.mp4-0cf71cac-coolidge.pdf) ([json](https://tvttranslations.blob.core.windows.net/json/video-translator-coolidge.mp4-0cf71cac-coolidge.json)) — a Calvin Coolidge address on the tax burden of government spending and the case for cutting public expenses.
+
 ## Architecture
 
 A single `VideoTranslatorWorkflow` (Temporal) drives the pipeline. Each Azure-bound stage runs on its own task queue with a per-pod concurrency cap matched to that service's quota. All Azure calls authenticate with Microsoft Entra ID via `DefaultAzureCredential` (service principal in-cluster, `az login` locally).
