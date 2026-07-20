@@ -35,14 +35,19 @@ class Summarizer:
         self.auth_headers = auth_headers
 
     def summarize(self, text):
-        """Summarize a long string into a roughly 200 word summary."""
+        """Summarize a long string into a roughly 150 word summary."""
         logger.info("Summarizing %d characters with %s", len(text), DEPLOYMENT)
         response = requests.post(
             f"{OPENAI_V1_BASE}/responses",
             headers=self.auth_headers(),
             json={
                 "model": DEPLOYMENT,
-                "instructions": "Summarize the text provided by the user in about 150 words.",
+                "instructions": (
+                    "Summarize the text provided by the user in about 150 words. Less is fine if the text is short."
+                    "Write plain prose only: no LaTeX, Markdown, code formatting, or "
+                    "other markup. Express mathematical notation in words "
+                    "(e.g. 'A x = 0', 'x squared', not '\\( A \\mathbf{x} = 0 \\)')."
+                ),
                 "input": text,
             },
         )
