@@ -1,0 +1,62 @@
+{{- if .Values.web.enabled }}
+# Web UI: submit runs and follow progress. Internal LB only; reach it with
+# web.sh (kubectl port-forward) or from inside the VNet.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.web.name }}
+  labels:
+    {{- include "temporal-video-translator.labels" . | nindent 4 }}
+    component: web
+spec:
+  replicas: {{ .Values.web.replicas }}
+  selector:
+    matchLabels:
+      {{- include "temporal-video-translator.selectorLabels" . | nindent 6 }}
+      component: web
+  template:
+    metadata:
+      labels:
+        {{- include "temporal-video-translator.selectorLabels" . | nindent 8 }}
+        component: web
+    spec:
+      containers:
+      - name: {{ .Values.web.name }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        command:
+        {{- range .Values.web.command }}
+        - {{ . | quote }}
+        {{- end }}
+        ports:
+        - containerPort: {{ .Values.web.port }}
+        resources:
+          requests:
+            cpu: "250m"
+            memory: "256Mi"
+          limits:
+            cpu: {{ .Values.web.resources.cpuLimit | quote }}
+            memory: {{ .Values.web.resources.memoryLimit | quote }}
+        env:
+        {{- include "temporal-video-translator.env" . | nindent 8 }}
+        envFrom:
+        - secretRef:
+            name: {{ .Values.app.name }}-azure
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.web.name }}
+  labels:
+    {{- include "temporal-video-translator.labels" . | nindent 4 }}
+  annotations:
+    service.beta.kubernetes.io/azure-load-balancer-internal: "true"
+spec:
+  type: LoadBalancer
+  selector:
+    {{- include "temporal-video-translator.selectorLabels" . | nindent 4 }}
+    component: web
+  ports:
+  - port: 80
+    targetPort: {{ .Values.web.port }}
+{{- end }}

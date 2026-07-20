@@ -1,0 +1,46 @@
+{{- if and .Values.temporal.enabled .Values.temporal.ui.enabled }}
+# Temporal web UI, ClusterIP only: kubectl port-forward svc/temporal-ui 8080:8080
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: temporal-ui
+  labels:
+    {{- include "temporal-video-translator.labels" . | nindent 4 }}
+    component: temporal-ui
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "temporal-video-translator.selectorLabels" . | nindent 6 }}
+      component: temporal-ui
+  template:
+    metadata:
+      labels:
+        {{- include "temporal-video-translator.selectorLabels" . | nindent 8 }}
+        component: temporal-ui
+    spec:
+      # keep kubelet's TEMPORAL_UI_PORT=tcp://... out of the UI's config parser
+      enableServiceLinks: false
+      containers:
+      - name: temporal-ui
+        image: "{{ .Values.temporal.ui.image }}:{{ .Values.temporal.ui.tag }}"
+        env:
+        - name: TEMPORAL_ADDRESS
+          value: "{{ .Values.temporal.frontendService }}:7233"
+        ports:
+        - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: temporal-ui
+  labels:
+    {{- include "temporal-video-translator.labels" . | nindent 4 }}
+spec:
+  selector:
+    {{- include "temporal-video-translator.selectorLabels" . | nindent 4 }}
+    component: temporal-ui
+  ports:
+  - port: 8080
+    targetPort: 8080
+{{- end }}

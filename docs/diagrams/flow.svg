@@ -1,0 +1,124 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1430" viewBox="0 0 1200 1430" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#2a6fb0"/>
+    </marker>
+  </defs>
+  <rect width="1200" height="1430" fill="#ffffff"/>
+
+  <text x="40" y="50" font-size="26" font-weight="bold" fill="#16324f">VideoTranslatorWorkflow — execution flow</text>
+  <text x="40" y="74" font-size="13" fill="#667">One run, top to bottom; side-by-side boxes inside dashed regions run in parallel</text>
+
+  <!-- sequential steps -->
+  <g>
+    <rect x="430" y="100" width="340" height="56" rx="8" fill="#f7f9fb" stroke="#16324f" stroke-width="1.5"/>
+    <text x="600" y="123" font-size="14" font-weight="bold" fill="#16324f" text-anchor="middle">start.py / test.sh / web UI submits run</text>
+    <text x="600" y="142" font-size="11.5" fill="#556" text-anchor="middle">video URL + languages + API key</text>
+
+    <line x1="600" y1="156" x2="600" y2="180" stroke="#2a6fb0" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+    <rect x="430" y="184" width="340" height="56" rx="8" fill="#eef3f8" stroke="#16324f" stroke-width="1.5"/>
+    <text x="600" y="207" font-size="14" font-weight="bold" fill="#16324f" text-anchor="middle">validate_api_key_activity</text>
+    <text x="600" y="226" font-size="11.5" fill="#556" text-anchor="middle">main queue — rejects bad keys immediately</text>
+
+    <line x1="600" y1="240" x2="600" y2="264" stroke="#2a6fb0" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+    <rect x="430" y="268" width="340" height="56" rx="8" fill="#eef3f8" stroke="#16324f" stroke-width="1.5"/>
+    <text x="600" y="291" font-size="14" font-weight="bold" fill="#16324f" text-anchor="middle">normalize_languages_activity</text>
+    <text x="600" y="310" font-size="11.5" fill="#556" text-anchor="middle">main queue — jp&#8594;ja, rejects unknown codes</text>
+
+    <line x1="600" y1="324" x2="600" y2="348" stroke="#2a6fb0" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+    <rect x="430" y="352" width="340" height="56" rx="8" fill="#eef3f8" stroke="#16324f" stroke-width="1.5"/>
+    <text x="600" y="375" font-size="14" font-weight="bold" fill="#16324f" text-anchor="middle">download_video_activity</text>
+    <text x="600" y="394" font-size="11.5" fill="#556" text-anchor="middle">main queue — URL &#8594; private videos container</text>
+  </g>
+
+  <!-- fork -->
+  <line x1="600" y1="408" x2="600" y2="432" stroke="#2a6fb0" stroke-width="1.5"/>
+  <circle cx="600" cy="438" r="5" fill="#2a6fb0"/>
+
+  <!-- parallel region A -->
+  <rect x="140" y="458" width="920" height="312" rx="10" fill="none" stroke="#b7791f" stroke-width="1.5" stroke-dasharray="7 5"/>
+  <text x="160" y="482" font-size="12" font-weight="bold" fill="#b7791f">IN PARALLEL</text>
+
+  <polyline points="600,443 380,470 380,552" fill="none" stroke="#2a6fb0" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <polyline points="600,443 800,470 800,496" fill="none" stroke="#2a6fb0" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- branch: transcription -->
+  <rect x="215" y="556" width="330" height="110" rx="8" fill="#eef3f8" stroke="#16324f" stroke-width="1.5"/>
+  <text x="380" y="585" font-size="14" font-weight="bold" fill="#16324f" text-anchor="middle">transcribe_video_activity</text>
+  <text x="380" y="606" font-size="11.5" fill="#556" text-anchor="middle">transcribe queue (cap 3/pod)</text>
+  <text x="380" y="624" font-size="11.5" fill="#556" text-anchor="middle">Azure AI Video Indexer: upload + poll</text>
+  <text x="380" y="642" font-size="11.5" fill="#556" text-anchor="middle">heartbeats; retry resumes same video ID</text>
+
+  <!-- branch: screenshots -->
+  <rect x="635" y="500" width="330" height="86" rx="8" fill="#eef3f8" stroke="#16324f" stroke-width="1.5"/>
+  <text x="800" y="527" font-size="14" font-weight="bold" fill="#16324f" text-anchor="middle">extract_screenshots_activity</text>
+  <text x="800" y="546" font-size="11.5" fill="#556" text-anchor="middle">screenshot queue (dedicated ffmpeg pool)</text>
+  <text x="800" y="564" font-size="11.5" fill="#556" text-anchor="middle">frames at 25% / 50% / 75% &#8594; scratch</text>
+
+  <line x1="800" y1="586" x2="800" y2="610" stroke="#2a6fb0" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <rect x="635" y="614" width="330" height="86" rx="8" fill="#eef3f8" stroke="#16324f" stroke-width="1.5"/>
+  <text x="800" y="641" font-size="14" font-weight="bold" fill="#16324f" text-anchor="middle">select_screenshot_activity</text>
+  <text x="800" y="660" font-size="11.5" fill="#556" text-anchor="middle">summarize queue — gpt-4o vision picks best</text>
+  <text x="800" y="678" font-size="11.5" fill="#556" text-anchor="middle">winner &#8594; public screenshots container</text>
+
+  <!-- join A -->
+  <polyline points="380,666 380,740 600,766" fill="none" stroke="#2a6fb0" stroke-width="1.5"/>
+  <polyline points="800,700 800,740 600,766" fill="none" stroke="#2a6fb0" stroke-width="1.5"/>
+  <circle cx="600" cy="772" r="5" fill="#2a6fb0"/>
+  <line x1="600" y1="777" x2="600" y2="798" stroke="#2a6fb0" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- paragraphing -->
+  <rect x="430" y="802" width="340" height="56" rx="8" fill="#eef3f8" stroke="#16324f" stroke-width="1.5"/>
+  <text x="600" y="825" font-size="14" font-weight="bold" fill="#16324f" text-anchor="middle">paragraph_transcript_activity</text>
+  <text x="600" y="844" font-size="11.5" fill="#556" text-anchor="middle">summarize queue — whitespace-only, verified; falls back</text>
+
+  <!-- fork B -->
+  <line x1="600" y1="858" x2="600" y2="878" stroke="#2a6fb0" stroke-width="1.5"/>
+  <circle cx="600" cy="884" r="5" fill="#2a6fb0"/>
+
+  <!-- parallel region B -->
+  <rect x="140" y="904" width="920" height="180" rx="10" fill="none" stroke="#b7791f" stroke-width="1.5" stroke-dasharray="7 5"/>
+  <text x="160" y="928" font-size="12" font-weight="bold" fill="#b7791f">IN PARALLEL</text>
+
+  <polyline points="600,889 380,916 380,960" fill="none" stroke="#2a6fb0" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <polyline points="600,889 800,916 800,960" fill="none" stroke="#2a6fb0" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <rect x="215" y="964" width="330" height="90" rx="8" fill="#eef3f8" stroke="#16324f" stroke-width="1.5"/>
+  <text x="380" y="993" font-size="14" font-weight="bold" fill="#16324f" text-anchor="middle">summarize_activity</text>
+  <text x="380" y="1013" font-size="11.5" fill="#556" text-anchor="middle">summarize queue (cap 2/pod)</text>
+  <text x="380" y="1031" font-size="11.5" fill="#556" text-anchor="middle">gpt-4o Responses API, ~150 words</text>
+
+  <rect x="635" y="964" width="330" height="90" rx="8" fill="#eef3f8" stroke="#16324f" stroke-width="1.5"/>
+  <text x="800" y="993" font-size="14" font-weight="bold" fill="#16324f" text-anchor="middle">translate_activity &#215; N languages</text>
+  <text x="800" y="1013" font-size="11.5" fill="#556" text-anchor="middle">translate queue (cap 4/pod)</text>
+  <text x="800" y="1031" font-size="11.5" fill="#556" text-anchor="middle">Azure AI Translator, one call per language</text>
+
+  <!-- join B -->
+  <polyline points="380,1054 380,1104 600,1130" fill="none" stroke="#2a6fb0" stroke-width="1.5"/>
+  <polyline points="800,1054 800,1104 600,1130" fill="none" stroke="#2a6fb0" stroke-width="1.5"/>
+  <circle cx="600" cy="1136" r="5" fill="#2a6fb0"/>
+  <line x1="600" y1="1141" x2="600" y2="1162" stroke="#2a6fb0" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- tail steps -->
+  <rect x="430" y="1166" width="340" height="56" rx="8" fill="#eef3f8" stroke="#16324f" stroke-width="1.5"/>
+  <text x="600" y="1189" font-size="14" font-weight="bold" fill="#16324f" text-anchor="middle">upload_result_activity</text>
+  <text x="600" y="1208" font-size="11.5" fill="#556" text-anchor="middle">main queue — {workflow-id}-{video}.json &#8594; json (public)</text>
+
+  <line x1="600" y1="1222" x2="600" y2="1246" stroke="#2a6fb0" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <rect x="430" y="1250" width="340" height="56" rx="8" fill="#eef3f8" stroke="#16324f" stroke-width="1.5"/>
+  <text x="600" y="1273" font-size="14" font-weight="bold" fill="#16324f" text-anchor="middle">render_pdf_activity</text>
+  <text x="600" y="1292" font-size="11.5" fill="#556" text-anchor="middle">main queue — template + WeasyPrint &#8594; pdf (public)</text>
+
+  <line x1="600" y1="1306" x2="600" y2="1330" stroke="#2a6fb0" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <rect x="390" y="1334" width="420" height="66" rx="8" fill="#e6f4ea" stroke="#1c7c43" stroke-width="1.5"/>
+  <text x="600" y="1360" font-size="14" font-weight="bold" fill="#1c7c43" text-anchor="middle">Result returned to caller</text>
+  <text x="600" y="1380" font-size="11.5" fill="#2c5e40" text-anchor="middle">transcript, summary, translations, screenshot_url, blob_url, pdf_url</text>
+
+  <text x="1160" y="1416" font-size="10" fill="#99a" text-anchor="end">generated from code on 2026-07-19</text>
+</svg>

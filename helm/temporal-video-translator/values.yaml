@@ -1,0 +1,125 @@
+# Default values for temporal-video-translator (AKS)
+
+app:
+  name: temporal-video-translator
+
+# Worker image, built and pushed to the tvttranslator ACR by the Makefile.
+# AKS pulls via its kubelet identity (AcrPull). make deploy pins
+# image.tag=${VERSION}; falls back to .Chart.AppVersion.
+image:
+  repository: tvttranslator.azurecr.io/temporal-video-translator
+  pullPolicy: Always
+
+# Long-running Temporal worker: hosts VideoTranslatorWorkflow and one capped
+# worker per Azure-bound task queue. Caps are per pod: replicas multiply them.
+worker:
+  enabled: true
+  name: temporal-video-translator-worker
+  # selector label; must stay stable across upgrades (immutable in kube)
+  component: worker
+  replicas: 2
+  # every pool except screenshots, which has its own deployment below
+  queues: "main,transcribe,summarize,translate"
+  resources:
+    cpuLimit: "1"
+    memoryLimit: "1Gi"
+  command: ['python', '-m', 'tvt.temporal.worker']
+
+# Dedicated ffmpeg screenshot pool; slimmer image without the PDF/font stack
+screenshotWorker:
+  enabled: true
+  name: temporal-video-translator-screenshot
+  component: screenshot
+  imageRepository: tvttranslator.azurecr.io/temporal-video-translator-screenshot
+  replicas: 3
+  queues: "screenshot"
+  resources:
+    cpuLimit: "1"
+    memoryLimit: "1Gi"
+  command: ['python', '-m', 'tvt.temporal.worker']
+
+# Web UI: submit runs and follow progress; exposed on an internal LB only
+# (reach it via web.sh port-forward).
+web:
+  enabled: true
+  name: temporal-video-translator-web
+  replicas: 1
+  port: 5000
+  command: ['gunicorn', '-b', '0.0.0.0:5000', 'tvt.web.app:app']
+  resources:
+    cpuLimit: "500m"
+    memoryLimit: "512Mi"
+
+# Self-contained Temporal server: auto-setup image + postgres + web UI.
+temporal:
+  enabled: true
+  image: temporalio/auto-setup
+  tag: "1.29.7"
+  frontendService: temporal-frontend
+  # Public LB so workflows can be kicked off from outside the cluster; the
+  # workflow itself rejects runs without the API key. Restrict with
+  # loadBalancerSourceRanges (CIDRs) if possible.
+  frontendServiceType: LoadBalancer
+  loadBalancerSourceRanges: []
+  # Azure DNS label: <dnsLabel>.<region>.cloudapp.azure.com tracks the LB IP
+  dnsLabel: tvt-temporal
+  resources:
+    cpuLimit: "1"
+    memoryLimit: "1Gi"
+  ui:
+    enabled: true
+    image: temporalio/ui
+    tag: "2.52.1"
+
+# Postgres backing the Temporal server. Password comes from secrets.yaml.
+postgres:
+  enabled: true
+  name: tvt-postgres
+  image: postgres:16
+  user: temporal
+  database: temporal
+  storageSize: 8Gi
+  resources:
+    cpuLimit: "1"
+    memoryLimit: "1Gi"
+
+# Non-sensitive env vars for the worker. Secret-backed vars (Azure SP creds,
+# subscription/account IDs) come from templates/secrets.yaml via envFrom.
+env:
+  TEMPORAL_ADDRESS: "temporal-frontend:7233"
+  TEMPORAL_NAMESPACE: "default"
+  TEMPORAL_TASK_QUEUE: "video-translator"
+  TEMPORAL_WORKFLOW_ID: "video-translator"
+  TEMPORAL_TRANSCRIBE_TASK_QUEUE: "video-translator-transcribe"
+  TEMPORAL_SUMMARIZE_TASK_QUEUE: "video-translator-summarize"
+  TEMPORAL_TRANSLATE_TASK_QUEUE: "video-translator-translate"
+  TEMPORAL_SCREENSHOT_TASK_QUEUE: "video-translator-screenshot"
+  MAX_CONCURRENT_TRANSCRIBE: "3"
+  MAX_CONCURRENT_SUMMARIZE: "2"
+  MAX_CONCURRENT_TRANSLATE: "4"
+  MAX_CONCURRENT_SCREENSHOT: "2"
+  AZURE_RESOURCE_GROUP: "temporal-video-translator"
+  AZURE_LOCATION: "eastus"
+  VIDEO_INDEXER_ACCOUNT_NAME: "tvt-video-indexer"
+  TRANSLATOR_ACCOUNT_NAME: "tvt-translator"
+  TRANSLATOR_ENDPOINT: "https://api.cognitive.microsofttranslator.com"
+  STORAGE_ACCOUNT_NAME: "tvttranslations"
+  STORAGE_CONTAINER: "json"
+  STORAGE_VIDEO_CONTAINER: "videos"
+  SCRATCH_SCREENSHOT_CONTAINER: "scratchscreenshots"
+  SCREENSHOT_CONTAINER: "screenshots"
+  PDF_CONTAINER: "pdf"
+  OPENAI_ACCOUNT_NAME: "tvt-openai"
+  OPENAI_ENDPOINT: "https://tvt-openai.openai.azure.com"
+  OPENAI_DEPLOYMENT: "gpt-4o"
+
+# Secret values. Left empty here; real values live in the chart-root
+# secrets.yaml (gitignored), passed at install time: helm -f secrets.yaml
+secrets:
+  apiKey: ""
+  azureClientId: ""
+  azureTenantId: ""
+  azureClientSecret: ""
+  azureSubscriptionId: ""
+  videoIndexerAccountId: ""
+  postgresPassword: ""

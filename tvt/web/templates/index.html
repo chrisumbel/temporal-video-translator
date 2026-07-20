@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Temporal Video Translator</title>
+<style>
+  body { font-family: Helvetica, Arial, sans-serif; color: #1a1a2e; margin: 0; background: #f4f7fa; }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 24px 20px 60px; }
+  h1 { color: #16324f; font-size: 26px; border-bottom: 3px solid #16324f; padding-bottom: 10px; }
+  h2 { color: #16324f; font-size: 17px; margin: 26px 0 10px; }
+  .card { background: #fff; border: 1px solid #ccd5e0; border-radius: 8px; padding: 18px 20px; margin-bottom: 18px; }
+  label { font-weight: bold; color: #16324f; display: block; margin-bottom: 6px; }
+  input[type=url] { width: 100%; box-sizing: border-box; padding: 9px 10px; border: 1px solid #ccd5e0; border-radius: 5px; font-size: 14px; }
+  .langs { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 4px 10px;
+           max-height: 230px; overflow-y: auto; border: 1px solid #dde4ec; border-radius: 5px; padding: 10px; background: #fbfcfe; }
+  .langs label { font-weight: normal; font-size: 13px; margin: 0; display: flex; gap: 6px; align-items: center; }
+  .langs .default-lang { font-weight: bold; }
+  button { background: #2a6fb0; color: #fff; border: 0; border-radius: 5px; padding: 10px 22px; font-size: 15px; cursor: pointer; margin-top: 14px; }
+  button:disabled { background: #9db8d0; cursor: default; }
+  #steps { list-style: none; padding: 0; margin: 0; }
+  #steps li { padding: 6px 4px; font-size: 14px; border-bottom: 1px solid #eef3f8; }
+  .st-completed::before { content: "\2713\00a0"; color: #1c7c43; font-weight: bold; }
+  .st-running::before { content: "\25B6\00a0"; color: #b7791f; }
+  .st-scheduled::before { content: "\25CB\00a0"; color: #99a; }
+  .st-failed::before { content: "\2717\00a0"; color: #b00020; font-weight: bold; }
+  .status-line { font-size: 13px; color: #667; margin: 6px 0 0; }
+  .error { background: #fdecee; border: 1px solid #b00020; color: #b00020; border-radius: 5px; padding: 10px 14px; }
+  .summary { background: #f4f7fa; border-left: 4px solid #2a6fb0; padding: 10px 14px; border-radius: 0 4px 4px 0; }
+  details { margin: 10px 0; }
+  details summary { cursor: pointer; font-weight: bold; color: #16324f; }
+  .prose { white-space: pre-wrap; font-size: 13.5px; line-height: 1.55; }
+  img.shot { max-width: 100%; border: 1px solid #ccd5e0; border-radius: 5px; }
+  .links a { color: #2a6fb0; margin-right: 16px; }
+  .badge { display: inline-block; background: #eef3f8; border: 1px solid #ccd5e0; border-radius: 3px;
+           padding: 0 6px; font-size: 11px; color: #16324f; margin-left: 6px; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Temporal Video Translator</h1>
+
+  <div class="card" id="form-card">
+    <label for="video-url">Video URL</label>
+    <input type="url" id="video-url" value="https://s3.us-east-1.amazonaws.com/blobs.chrisumbel.com/nasa.mp4" required>
+
+    <h2>Languages</h2>
+    <div class="langs">
+      {% for code in languages %}
+      <label {% if code in defaults %}class="default-lang"{% endif %}>
+        <input type="checkbox" name="lang" value="{{ code }}" {% if code in defaults %}checked{% endif %}>
+        {{ code }}
+      </label>
+      {% endfor %}
+    </div>
+
+    <button id="submit-btn">Translate video</button>
+  </div>
+
+  <div class="card hidden" id="progress-card">
+    <h2 style="margin-top:0">Progress <span class="badge" id="wf-id"></span></h2>
+    <ul id="steps"></ul>
+    <p class="status-line" id="status-line"></p>
+    <div class="error hidden" id="error-box"></div>
+  </div>
+
+  <div class="card hidden" id="result-card">
+    <h2 style="margin-top:0">Result</h2>
+    <div id="shot-wrap" class="hidden"><img class="shot" id="shot" alt="Selected screenshot"></div>
+    <h2>Summary</h2>
+    <div class="summary prose" id="summary"></div>
+    <p class="links" id="links"></p>
+    <details><summary>Transcript</summary><div class="prose" id="transcript"></div></details>
+    <div id="translations"></div>
+  </div>
+</div>
+
+<script>
+const POLL_MS = 3000;
+let timer = null;
+// responses are ignored unless they belong to this run: in-flight fetches
+// from a previous run must not repaint the screen after a reset
+let currentRun = null;
+
+document.getElementById('submit-btn').addEventListener('click', async () => {
+  const videoUrl = document.getElementById('video-url').value.trim();
+  const langs = [...document.querySelectorAll('input[name=lang]:checked')].map(cb => cb.value);
+  if (!videoUrl) { alert('Enter a video URL'); return; }
+  if (!langs.length) { alert('Pick at least one language'); return; }
+
+  resetRun();
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true; btn.textContent = 'Starting…';
+  try {
+    const resp = await fetch('/api/runs', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({video_url: videoUrl, languages: langs}),
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || resp.statusText);
+    document.getElementById('progress-card').classList.remove('hidden');
+    document.getElementById('wf-id').textContent = data.workflow_id;
+    poll(data.workflow_id);
+  } catch (err) {
+    alert('Failed to start: ' + err.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Translate video';
+  }
+});
+
+function resetRun() {
+  currentRun = null;
+  if (timer) clearInterval(timer);
+  document.getElementById('progress-card').classList.add('hidden');
+  document.getElementById('steps').innerHTML = '';
+  document.getElementById('status-line').textContent = '';
+  const errorBox = document.getElementById('error-box');
+  errorBox.textContent = '';
+  errorBox.classList.add('hidden');
+  document.getElementById('result-card').classList.add('hidden');
+  document.getElementById('shot-wrap').classList.add('hidden');
+  document.getElementById('shot').removeAttribute('src');
+  document.getElementById('summary').textContent = '';
+  document.getElementById('transcript').textContent = '';
+  document.getElementById('links').innerHTML = '';
+  document.getElementById('translations').innerHTML = '';
+}
+
+function poll(workflowId) {
+  if (timer) clearInterval(timer);
+  currentRun = workflowId;
+  const tick = async () => {
+    try {
+      const resp = await fetch('/api/runs/' + encodeURIComponent(workflowId));
+      const data = await resp.json();
+      if (currentRun !== workflowId) return;
+      renderSteps(data);
+      if (data.status === 'COMPLETED') { clearInterval(timer); renderResult(data.result); }
+      else if (data.error) {
+        clearInterval(timer);
+        const box = document.getElementById('error-box');
+        box.textContent = data.status + ': ' + data.error;
+        box.classList.remove('hidden');
+      }
+    } catch (err) { /* transient poll error; keep trying */ }
+  };
+  tick();
+  timer = setInterval(tick, POLL_MS);
+}
+
+function renderSteps(data) {
+  const ul = document.getElementById('steps');
+  ul.innerHTML = '';
+  for (const step of data.steps) {
+    const li = document.createElement('li');
+    li.className = 'st-' + step.state;
+    li.textContent = step.activity + (step.attempt > 1 ? ` (attempt ${step.attempt})` : '');
+    ul.appendChild(li);
+  }
+  document.getElementById('status-line').textContent = 'Workflow status: ' + data.status;
+}
+
+function renderResult(result) {
+  document.getElementById('result-card').classList.remove('hidden');
+  if (result.screenshot_url) {
+    document.getElementById('shot-wrap').classList.remove('hidden');
+    document.getElementById('shot').src = result.screenshot_url;
+  }
+  document.getElementById('summary').textContent = result.summary || '';
+  document.getElementById('transcript').textContent = result.transcript || '';
+
+  const links = [];
+  if (result.blob_url) links.push(`<a href="${result.blob_url}" target="_blank">Result JSON</a>`);
+  if (result.pdf_url) links.push(`<a href="${result.pdf_url}" target="_blank">PDF report</a>`);
+  if (result.screenshot_url) links.push(`<a href="${result.screenshot_url}" target="_blank">Screenshot</a>`);
+  document.getElementById('links').innerHTML = links.join('');
+
+  const wrap = document.getElementById('translations');
+  wrap.innerHTML = '';
+  for (const t of (result.translations || [])) {
+    const d = document.createElement('details');
+    const s = document.createElement('summary');
+    s.textContent = 'Translation (' + t.language + ')';
+    const div = document.createElement('div');
+    div.className = 'prose';
+    div.textContent = t.text;
+    d.appendChild(s); d.appendChild(div);
+    wrap.appendChild(d);
+  }
+}
+</script>
+</body>
+</html>

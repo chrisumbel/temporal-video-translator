@@ -1,0 +1,81 @@
+{{- if .Values.postgres.enabled }}
+# Postgres backing the Temporal server
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Values.postgres.name }}-data
+  labels:
+    {{- include "temporal-video-translator.labels" . | nindent 4 }}
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: {{ .Values.postgres.storageSize }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.postgres.name }}
+  labels:
+    {{- include "temporal-video-translator.labels" . | nindent 4 }}
+    component: postgres
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "temporal-video-translator.selectorLabels" . | nindent 6 }}
+      component: postgres
+  template:
+    metadata:
+      labels:
+        {{- include "temporal-video-translator.selectorLabels" . | nindent 8 }}
+        component: postgres
+    spec:
+      containers:
+      - name: postgres
+        image: {{ .Values.postgres.image }}
+        env:
+        - name: POSTGRES_USER
+          value: {{ .Values.postgres.user | quote }}
+        - name: POSTGRES_DB
+          value: {{ .Values.postgres.database | quote }}
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.app.name }}-postgres
+              key: POSTGRES_PASSWORD
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
+        ports:
+        - containerPort: 5432
+        resources:
+          requests:
+            cpu: "250m"
+            memory: "256Mi"
+          limits:
+            cpu: {{ .Values.postgres.resources.cpuLimit | quote }}
+            memory: {{ .Values.postgres.resources.memoryLimit | quote }}
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/postgresql/data
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: {{ .Values.postgres.name }}-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.postgres.name }}
+  labels:
+    {{- include "temporal-video-translator.labels" . | nindent 4 }}
+spec:
+  selector:
+    {{- include "temporal-video-translator.selectorLabels" . | nindent 4 }}
+    component: postgres
+  ports:
+  - port: 5432
+    targetPort: 5432
+{{- end }}

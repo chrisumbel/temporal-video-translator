@@ -1,0 +1,46 @@
+{{- range $pool := list .Values.worker .Values.screenshotWorker }}
+{{- if $pool.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $pool.name }}
+  labels:
+    {{- include "temporal-video-translator.labels" $ | nindent 4 }}
+    component: {{ $pool.component }}
+spec:
+  replicas: {{ $pool.replicas }}
+  selector:
+    matchLabels:
+      {{- include "temporal-video-translator.selectorLabels" $ | nindent 6 }}
+      component: {{ $pool.component }}
+  template:
+    metadata:
+      labels:
+        {{- include "temporal-video-translator.selectorLabels" $ | nindent 8 }}
+        component: {{ $pool.component }}
+    spec:
+      containers:
+      - name: {{ $pool.name }}
+        image: "{{ $pool.imageRepository | default $.Values.image.repository }}:{{ $.Values.image.tag | default $.Chart.AppVersion }}"
+        imagePullPolicy: {{ $.Values.image.pullPolicy }}
+        command:
+        {{- range $pool.command }}
+        - {{ . | quote }}
+        {{- end }}
+        resources:
+          requests:
+            cpu: "250m"
+            memory: "256Mi"
+          limits:
+            cpu: {{ $pool.resources.cpuLimit | quote }}
+            memory: {{ $pool.resources.memoryLimit | quote }}
+        env:
+        - name: WORKER_QUEUES
+          value: {{ $pool.queues | quote }}
+        {{- include "temporal-video-translator.env" $ | nindent 8 }}
+        envFrom:
+        - secretRef:
+            name: {{ $.Values.app.name }}-azure
+{{- end }}
+{{- end }}

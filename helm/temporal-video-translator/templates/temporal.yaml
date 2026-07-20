@@ -1,0 +1,71 @@
+{{- if .Values.temporal.enabled }}
+# Temporal server (auto-setup: schema setup + all services in one pod)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: temporal
+  labels:
+    {{- include "temporal-video-translator.labels" . | nindent 4 }}
+    component: temporal
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "temporal-video-translator.selectorLabels" . | nindent 6 }}
+      component: temporal
+  template:
+    metadata:
+      labels:
+        {{- include "temporal-video-translator.selectorLabels" . | nindent 8 }}
+        component: temporal
+    spec:
+      containers:
+      - name: temporal
+        image: "{{ .Values.temporal.image }}:{{ .Values.temporal.tag }}"
+        env:
+        - name: DB
+          value: "postgres12"
+        - name: DB_PORT
+          value: "5432"
+        - name: POSTGRES_SEEDS
+          value: {{ .Values.postgres.name | quote }}
+        - name: POSTGRES_USER
+          value: {{ .Values.postgres.user | quote }}
+        - name: POSTGRES_PWD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.app.name }}-postgres
+              key: POSTGRES_PASSWORD
+        ports:
+        - containerPort: 7233
+        resources:
+          requests:
+            cpu: "250m"
+            memory: "256Mi"
+          limits:
+            cpu: {{ .Values.temporal.resources.cpuLimit | quote }}
+            memory: {{ .Values.temporal.resources.memoryLimit | quote }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.temporal.frontendService }}
+  labels:
+    {{- include "temporal-video-translator.labels" . | nindent 4 }}
+  {{- if .Values.temporal.dnsLabel }}
+  annotations:
+    service.beta.kubernetes.io/azure-dns-label-name: {{ .Values.temporal.dnsLabel }}
+  {{- end }}
+spec:
+  type: {{ .Values.temporal.frontendServiceType }}
+  {{- with .Values.temporal.loadBalancerSourceRanges }}
+  loadBalancerSourceRanges:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  selector:
+    {{- include "temporal-video-translator.selectorLabels" . | nindent 4 }}
+    component: temporal
+  ports:
+  - port: 7233
+    targetPort: 7233
+{{- end }}

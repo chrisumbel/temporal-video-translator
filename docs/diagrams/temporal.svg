@@ -1,0 +1,120 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1320" height="920" viewBox="0 0 1320 920" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#2a6fb0"/>
+    </marker>
+  </defs>
+  <rect width="1320" height="920" fill="#ffffff"/>
+
+  <text x="40" y="50" font-size="26" font-weight="bold" fill="#16324f">Temporal architecture — temporal-video-translator</text>
+  <text x="40" y="74" font-size="13" fill="#667">Clients submit workflows; worker pools poll one task queue each, capped to its Azure quota</text>
+
+  <!-- clients -->
+  <rect x="40" y="120" width="300" height="112" rx="8" fill="#f7f9fb" stroke="#16324f" stroke-width="1.5"/>
+  <text x="60" y="147" font-size="15" font-weight="bold" fill="#16324f">Clients</text>
+  <text x="60" y="168" font-size="11.5" fill="#556">start.py / test.sh (API key in params)</text>
+  <text x="60" y="186" font-size="11.5" fill="#556">tvt-temporal.eastus.cloudapp.azure.com:7233</text>
+  <text x="60" y="204" font-size="11.5" fill="#556">web UI (in-cluster Flask) via web.sh :5080</text>
+  <text x="60" y="222" font-size="11.5" fill="#556">Temporal UI via admin.sh port-forward</text>
+
+  <line x1="190" y1="232" x2="190" y2="256" stroke="#2a6fb0" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- temporal server stack -->
+  <rect x="40" y="260" width="300" height="330" rx="8" fill="#f7f9fb" stroke="#16324f" stroke-width="1.5"/>
+  <text x="60" y="288" font-size="15" font-weight="bold" fill="#16324f">Temporal server (in-cluster)</text>
+
+  <rect x="60" y="304" width="260" height="64" rx="6" fill="#eef3f8" stroke="#2a6fb0" stroke-width="1.5"/>
+  <text x="70" y="327" font-size="12.5" font-weight="bold" fill="#16324f">temporal-frontend :7233</text>
+  <text x="70" y="345" font-size="11" fill="#556">Service type LoadBalancer (public)</text>
+  <text x="70" y="360" font-size="11" fill="#556">DNS label: tvt-temporal</text>
+
+  <rect x="60" y="380" width="260" height="52" rx="6" fill="#eef3f8" stroke="#ccd5e0" stroke-width="1.5"/>
+  <text x="70" y="402" font-size="12.5" font-weight="bold" fill="#16324f">temporal (auto-setup 1.29.7)</text>
+  <text x="70" y="420" font-size="11" fill="#556">history / matching / worker services</text>
+
+  <rect x="60" y="444" width="260" height="52" rx="6" fill="#eef3f8" stroke="#ccd5e0" stroke-width="1.5"/>
+  <text x="70" y="466" font-size="12.5" font-weight="bold" fill="#16324f">tvt-postgres (postgres:16)</text>
+  <text x="70" y="484" font-size="11" fill="#556">8Gi PVC, password from secrets.yaml</text>
+
+  <rect x="60" y="508" width="260" height="52" rx="6" fill="#eef3f8" stroke="#ccd5e0" stroke-width="1.5"/>
+  <text x="70" y="530" font-size="12.5" font-weight="bold" fill="#16324f">temporal-ui (2.52.1)</text>
+  <text x="70" y="548" font-size="11" fill="#556">ClusterIP only — port-forward :8080</text>
+
+  <!-- queues -->
+  <text x="470" y="130" font-size="14" font-weight="bold" fill="#b7791f">TASK QUEUES</text>
+
+  <rect x="430" y="146" width="300" height="88" rx="20" fill="#fdf3e3" stroke="#b7791f" stroke-width="1.5"/>
+  <text x="580" y="172" font-size="13" font-weight="bold" fill="#16324f" text-anchor="middle">video-translator (main)</text>
+  <text x="580" y="192" font-size="11" fill="#556" text-anchor="middle">workflow tasks + utility activities</text>
+  <text x="580" y="210" font-size="11" fill="#556" text-anchor="middle">uncapped</text>
+
+  <rect x="430" y="254" width="300" height="70" rx="20" fill="#fdf3e3" stroke="#b7791f" stroke-width="1.5"/>
+  <text x="580" y="280" font-size="13" font-weight="bold" fill="#16324f" text-anchor="middle">video-translator-transcribe</text>
+  <text x="580" y="300" font-size="11" fill="#556" text-anchor="middle">cap 3 per pod — Video Indexer quota</text>
+
+  <rect x="430" y="344" width="300" height="70" rx="20" fill="#fdf3e3" stroke="#b7791f" stroke-width="1.5"/>
+  <text x="580" y="370" font-size="13" font-weight="bold" fill="#16324f" text-anchor="middle">video-translator-summarize</text>
+  <text x="580" y="390" font-size="11" fill="#556" text-anchor="middle">cap 2 per pod — gpt-4o quota</text>
+
+  <rect x="430" y="434" width="300" height="70" rx="20" fill="#fdf3e3" stroke="#b7791f" stroke-width="1.5"/>
+  <text x="580" y="460" font-size="13" font-weight="bold" fill="#16324f" text-anchor="middle">video-translator-translate</text>
+  <text x="580" y="480" font-size="11" fill="#556" text-anchor="middle">cap 4 per pod — Translator quota</text>
+
+  <rect x="430" y="524" width="300" height="70" rx="20" fill="#fdf3e3" stroke="#b7791f" stroke-width="1.5"/>
+  <text x="580" y="550" font-size="13" font-weight="bold" fill="#16324f" text-anchor="middle">video-translator-screenshot</text>
+  <text x="580" y="570" font-size="11" fill="#556" text-anchor="middle">cap 2 per pod — ffmpeg work</text>
+
+  <!-- frontend to queues -->
+  <line x1="340" y1="336" x2="426" y2="190" stroke="#2a6fb0" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <line x1="340" y1="336" x2="426" y2="289" stroke="#2a6fb0" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <line x1="340" y1="336" x2="426" y2="379" stroke="#2a6fb0" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <line x1="340" y1="336" x2="426" y2="469" stroke="#2a6fb0" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <line x1="340" y1="336" x2="426" y2="559" stroke="#2a6fb0" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+  <!-- main worker deployment -->
+  <rect x="800" y="120" width="480" height="500" rx="8" fill="#f7f9fb" stroke="#16324f" stroke-width="1.5"/>
+  <text x="820" y="148" font-size="15" font-weight="bold" fill="#16324f">Deployment: temporal-video-translator-worker</text>
+  <text x="820" y="168" font-size="11.5" fill="#556">2 replicas — image temporal-video-translator (PDF fonts, no ffmpeg)</text>
+  <text x="820" y="186" font-size="11.5" fill="#556">WORKER_QUEUES=main,transcribe,summarize,translate</text>
+
+  <rect x="820" y="202" width="440" height="126" rx="6" fill="#eef3f8" stroke="#ccd5e0" stroke-width="1.5"/>
+  <text x="834" y="226" font-size="12.5" font-weight="bold" fill="#16324f">main pool — VideoTranslatorWorkflow</text>
+  <text x="834" y="246" font-size="11" fill="#556">validate_api_key_activity, normalize_languages_activity</text>
+  <text x="834" y="264" font-size="11" fill="#556">download_video_activity, upload_result_activity</text>
+  <text x="834" y="282" font-size="11" fill="#556">render_pdf_activity</text>
+  <text x="834" y="302" font-size="11" fill="#889">heartbeats on long calls; retries per-activity</text>
+
+  <rect x="820" y="342" width="440" height="60" rx="6" fill="#eef3f8" stroke="#ccd5e0" stroke-width="1.5"/>
+  <text x="834" y="366" font-size="12.5" font-weight="bold" fill="#16324f">transcribe pool (max 3 concurrent)</text>
+  <text x="834" y="386" font-size="11" fill="#556">transcribe_video_activity — resumable via heartbeat details</text>
+
+  <rect x="820" y="416" width="440" height="76" rx="6" fill="#eef3f8" stroke="#ccd5e0" stroke-width="1.5"/>
+  <text x="834" y="440" font-size="12.5" font-weight="bold" fill="#16324f">summarize pool (max 2 concurrent)</text>
+  <text x="834" y="460" font-size="11" fill="#556">summarize_activity, select_screenshot_activity,</text>
+  <text x="834" y="478" font-size="11" fill="#556">paragraph_transcript_activity (all gpt-4o)</text>
+
+  <rect x="820" y="506" width="440" height="60" rx="6" fill="#eef3f8" stroke="#ccd5e0" stroke-width="1.5"/>
+  <text x="834" y="530" font-size="12.5" font-weight="bold" fill="#16324f">translate pool (max 4 concurrent)</text>
+  <text x="834" y="550" font-size="11" fill="#556">translate_activity (Azure AI Translator)</text>
+
+  <!-- screenshot worker deployment -->
+  <rect x="800" y="650" width="480" height="150" rx="8" fill="#f7f9fb" stroke="#16324f" stroke-width="1.5"/>
+  <text x="820" y="678" font-size="15" font-weight="bold" fill="#16324f">Deployment: temporal-video-translator-screenshot</text>
+  <text x="820" y="698" font-size="11.5" fill="#556">3 replicas — image temporal-video-translator-screenshot (ffmpeg)</text>
+  <text x="820" y="716" font-size="11.5" fill="#556">WORKER_QUEUES=screenshot</text>
+  <rect x="820" y="730" width="440" height="56" rx="6" fill="#eef3f8" stroke="#ccd5e0" stroke-width="1.5"/>
+  <text x="834" y="752" font-size="12.5" font-weight="bold" fill="#16324f">screenshot pool (max 2 concurrent)</text>
+  <text x="834" y="772" font-size="11" fill="#556">extract_screenshots_activity — ffprobe + ffmpeg frames</text>
+
+  <!-- pools poll queues -->
+  <line x1="796" y1="235" x2="734" y2="196" stroke="#889" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+  <line x1="796" y1="372" x2="734" y2="300" stroke="#889" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+  <line x1="796" y1="446" x2="734" y2="385" stroke="#889" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+  <line x1="796" y1="536" x2="734" y2="472" stroke="#889" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+  <line x1="796" y1="725" x2="734" y2="568" stroke="#889" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+
+  <text x="470" y="640" font-size="11" fill="#889">solid: workflow/activity dispatch</text>
+  <text x="470" y="658" font-size="11" fill="#889">dashed: worker pools long-polling their queue</text>
+
+  <text x="1280" y="900" font-size="10" fill="#99a" text-anchor="end">generated from code on 2026-07-19</text>
+</svg>

@@ -1,0 +1,6 @@
+.git
+.env
+secrets.yaml
+*.mp4
+__pycache__
+helm/
