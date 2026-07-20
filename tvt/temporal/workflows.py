@@ -46,7 +46,7 @@ class VideoTranslatorWorkflow:
             f"(languages={params.languages})"
         )
 
-        # Step 0: reject runs without a valid API key before doing any work
+        # reject runs without a valid API key before doing any work
         await workflow.execute_activity(
             validate_api_key_activity,
             params.api_key,
@@ -63,7 +63,7 @@ class VideoTranslatorWorkflow:
             retry_policy=RetryPolicy(maximum_attempts=3),
         )
 
-        # Step 1: download into blob storage
+        # download into blob storage
         video_blob_name = await workflow.execute_activity(
             download_video_activity,
             params.video_url,
@@ -75,7 +75,7 @@ class VideoTranslatorWorkflow:
         video_name = posixpath.basename(urlparse(params.video_url).path) or "video"
         video_stem = posixpath.splitext(video_name)[0]
 
-        # Step 2: transcribe, and in parallel screenshot + pick the best shot.
+        # transcribe, and in parallel screenshot + pick the best shot.
         # Indexing is slow; generous timeout, few retries.
         transcribe_future = workflow.execute_activity(
             transcribe_video_activity,
@@ -124,7 +124,7 @@ class VideoTranslatorWorkflow:
             retry_policy=RetryPolicy(maximum_attempts=8),
         )
 
-        # Step 3: summarize + translate concurrently
+        # summarize + translate concurrently
         text_retry = RetryPolicy(maximum_attempts=4)
         summary_future = workflow.execute_activity(
             summarize_activity,
@@ -155,7 +155,7 @@ class VideoTranslatorWorkflow:
             screenshot_url=screenshot_url,
         )
 
-        # Step 4: upload the result JSON, prefixed with the workflow ID
+        # upload the result JSON, prefixed with the workflow ID
         # (video-translator-jfk.mp4-1234abcd-jfk.json)
         workflow_id = workflow.info().workflow_id
         result.blob_url = await workflow.execute_activity(
@@ -166,7 +166,7 @@ class VideoTranslatorWorkflow:
             retry_policy=RetryPolicy(maximum_attempts=4),
         )
 
-        # Step 5: render the PDF report from the same document
+        # render the PDF report from the same document
         result.pdf_url = await workflow.execute_activity(
             render_pdf_activity,
             PdfRequest(
