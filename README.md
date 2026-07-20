@@ -34,7 +34,7 @@ flowchart TD
     summarize --> upload[upload result JSON]
     translate --> upload
     pick --> upload
-    upload --> pdf[render PDF report<br>>WeasyPrint]
+    upload --> pdf[render PDF report<br>WeasyPrint]
 ```
 
 Everything runs in the `tvt-aks` cluster inside the `temporal-video-translator` resource group (eastus):
